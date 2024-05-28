@@ -1,0 +1,1559 @@
+-----------------MESSAGE QUEUE-------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------
+
+----------SENDER.C--------------------------------------
+#include<sys/ipc.h>
+#include<sys/msg.h>
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+
+int main()
+{
+    int msgqid,len;
+    struct msgbuf
+    {
+        long mtype;
+        char mtext[100];
+    } send;
+    key_t key;
+    key=10;
+    msgqid=msgget(key,IPC_CREAT|0666);
+    if(msgqid<0)
+    {
+        printf("msg failed");
+        exit(1);
+    }
+    strcpy(send.mtext,"hello aditya");
+    send.mtype=1;
+    len=strlen(send.mtext);
+    if(msgsnd(msgqid,&send,len,0)==-1)
+    {
+        printf("msg sending failed");
+        exit(1);
+    }
+    if(strncmp(send.mtext,"end",3)==0){
+    printf("message sending stop");
+    exit(1);
+    }
+    return 0;
+}
+
+----------RECIEVER.C-------------------------------------------------------
+#include<sys/ipc.h>
+#include<sys/msg.h>
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+
+int main()
+{
+    int msqid,len;
+    long int msg_to_rec=0;
+    struct msgbuf
+    {
+        long mtype;
+        char mtext[100];
+    } recv;
+    key_t key;
+    key=10;
+    msqid=msgget(key,IPC_CREAT|0666);
+    if(msqid==-1)
+    {
+        printf("msgget failed");
+        exit(1);
+    }
+    if(msgrcv(msqid,&recv,20,msg_to_rec,0)<0)
+    {
+        printf("msg failed");
+        exit(1);
+    }
+    printf("msg from sender : %s\n",recv.mtext);
+    if(strncmp(recv.mtext,"end",3)==0)
+    {
+        exit(1);
+    }
+    //msgctl(msqid,IPC_RMID,0);
+    return 0;
+}
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+
+------------------------------CHARACTER INCREMENT USING UDP------------------------------------------------------------
+-------SENDER.C---------------------------------
+#include<stdio.h>
+#include<sys/socket.h>
+#include<netinet/in.h>
+int main()
+{
+int cfd,clen;
+char ch='b';
+struct sockaddr_in cadr;
+cfd=socket(AF_INET,SOCK_DGRAM,0);
+cadr.sin_family=AF_INET;
+cadr.sin_addr.s_addr=htonl(INADDR_ANY);
+cadr.sin_port=htons(8888);
+clen=sizeof(cadr);
+bind(cfd,(struct sockaddr*)&cadr,clen);
+sendto(cfd,&ch,1,0,(struct sockaddr*)&cadr,clen);
+recvfrom(cfd,&ch,1,0,(struct sockaddr*)&cadr,&clen);
+printf("character from server %c\n",ch);
+//close(cfd);
+return 0;
+}
+
+---------------RECEIVER.C---------------------------------
+#include<stdio.h>
+#include<sys/socket.h>
+#include<netinet/in.h>
+int main()
+{
+int sfd,slen;
+struct sockaddr_in s;
+sfd=socket(AF_INET,SOCK_DGRAM,0);
+s.sin_family=AF_INET;
+s.sin_addr.s_addr=htonl(INADDR_ANY);
+s.sin_port=htons(8888);
+slen=sizeof(s);
+bind(sfd,(struct sockaddr*)&s,slen);
+while(1)
+{
+char ch;
+printf("server on \n");
+
+recvfrom(sfd,&ch,1,0,(struct sockaddr*)&s,&slen);
+ch++;
+sendto(sfd,&ch,1,0,(struct sockaddr*)&s,slen);
+
+}
+return 0;
+}
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+
+--------------------REVERSE STRING USING UDP-------------------------------------------------------------------
+
+-----------SENDER.C----------------------------------------------------
+#include<stdio.h>
+#include<sys/socket.h>
+#include<netinet/in.h>
+#include<string.h>
+int main()
+{
+int cfd,clen,len;
+char ch[20];
+printf("Enter the string\n");
+scanf("%s",ch);
+len=strlen(ch);
+struct sockaddr_in cadr;
+cfd=socket(AF_INET,SOCK_DGRAM,0);
+cadr.sin_family=AF_INET;
+cadr.sin_addr.s_addr=htonl(INADDR_ANY);
+cadr.sin_port=htons(8889);
+clen=sizeof(cadr);
+bind(cfd,(struct sockaddr*)&cadr,clen);
+sendto(cfd,&ch,len+1,0,(struct sockaddr*)&cadr,clen);
+recvfrom(cfd,&ch,len+1,0,(struct sockaddr*)&cadr,&clen);
+printf("Reverse of string from server %s\n",ch);
+//close(cfd);
+return 0;
+}
+
+-----------RECIEVER.C--------------------------------------------------
+#include<stdio.h>
+#include<sys/socket.h>
+#include<netinet/in.h>
+#include<string.h>
+int main()
+{
+int sfd,slen;
+struct sockaddr_in s;
+sfd=socket(AF_INET,SOCK_DGRAM,0);
+s.sin_family=AF_INET;
+s.sin_addr.s_addr=htonl(INADDR_ANY);
+s.sin_port=htons(8889);
+slen=sizeof(s);
+bind(sfd,(struct sockaddr*)&s,slen);
+while(1)
+{
+char ch[20];
+printf("server on \n");
+
+recvfrom(sfd,&ch,20,0,(struct sockaddr*)&s,&slen);
+//ch++;
+int len = strlen(ch);
+ 
+    // for loop
+    for (int i = 0, j = len - 1; i <= j; i++, j--) {
+        // swapping characters
+        char c = ch[i];
+        ch[i] = ch[j];
+        ch[j] = c;
+    }
+sendto(sfd,&ch,20,0,(struct sockaddr*)&s,slen);
+
+}
+return 0;
+}
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+
+-------------------TCP CONNECTION----------------------------------------------------
+----------SENDER.C-----------------------------------
+#include<stdio.h>
+#include<sys/types.h>
+#include<sys/socket.h>
+#include<netinet/in.h>
+#include<stdlib.h>
+#include<arpa/inet.h>
+#include<unistd.h>
+
+int main()
+{
+int sockfd,len,result;
+struct sockaddr_in address;
+char name[100],ser[100];
+sockfd=socket(AF_INET,SOCK_STREAM,0);
+address.sin_family=AF_INET;
+address.sin_port=htons(9002);
+address.sin_addr.s_addr=htonl(INADDR_ANY);
+len=sizeof(address);
+result=connect(sockfd,(struct sockaddr*)&address,len);
+printf("Enter the message to be sent: \n");
+gets(name);
+write(sockfd,name,sizeof(name));
+printf("\nMessage sent\n");
+read(sockfd,ser,sizeof(ser));
+printf("\n Reading from server: \n");
+puts(ser);
+close(sockfd);
+return(0);
+}
+
+--------------RECEIVER.C----------------------------------------------
+#include<stdio.h>
+#include<sys/types.h>
+#include<sys/socket.h>
+#include<netinet/in.h>
+#include<arpa/inet.h>
+#include<unistd.h>
+
+int main()
+{
+int serv_sockfd,cli_sockfd;
+int serv_len,cli_len;
+struct sockaddr_in serv_address,cli_address;
+char a[100],b[100];
+serv_address.sin_family=AF_INET;
+serv_address.sin_port=htons(9002);
+serv_address.sin_addr.s_addr=htonl(INADDR_ANY);
+serv_len=sizeof(serv_address);
+serv_sockfd=socket(AF_INET,SOCK_STREAM,0);
+bind(serv_sockfd,(struct sockaddr*)&serv_address,serv_len);
+listen(serv_sockfd,1);
+
+while(1)
+{
+printf("Server is waiting..\n");
+cli_len=sizeof(cli_address);
+cli_sockfd=accept(serv_sockfd,(struct sockaddr*)&cli_address,&cli_len);
+printf("Connect to client\n");
+read(cli_sockfd,a,sizeof(a));
+printf("Reading message from client:\n");
+puts(a);
+write(cli_sockfd,b,sizeof(b));
+gets(b);
+close(cli_sockfd);
+}
+}
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+
+------------------INCREMENT CHARACTER USING TCP------------------------------------
+-------SENDER.C-----------
+#include<stdio.h>
+#include<sys/types.h>
+#include<sys/socket.h>
+#include<netinet/in.h>
+#include<stdlib.h>
+#include<arpa/inet.h>
+#include<unistd.h>
+
+int main()
+{
+int sockfd,len,result;
+struct sockaddr_in address;
+char ch;
+sockfd=socket(AF_INET,SOCK_STREAM,0);
+address.sin_family=AF_INET;
+address.sin_port=htons(9002);
+address.sin_addr.s_addr=htonl(INADDR_ANY);
+len=sizeof(address);
+result=connect(sockfd,(struct sockaddr*)&address,len);
+printf("Enter the character to be sent: \n");
+scanf("%c",&ch);
+write(sockfd,&ch,sizeof(ch));
+printf("\nCharacter sent\n");
+read(sockfd,&ch,sizeof(ch));
+printf("\n Incremented character from server: %c\n",ch);
+//close(sockfd);
+return(0);
+}
+
+-------------RECEIVER.C--------------------------------------------
+#include<stdio.h>
+#include<sys/types.h>
+#include<sys/socket.h>
+#include<netinet/in.h>
+#include<arpa/inet.h>
+#include<unistd.h>
+
+int main()
+{
+int serv_sockfd,cli_sockfd;
+int serv_len,cli_len;
+struct sockaddr_in serv_address,cli_address;
+char a;
+serv_address.sin_family=AF_INET;
+serv_address.sin_port=htons(9002);
+serv_address.sin_addr.s_addr=htonl(INADDR_ANY);
+serv_len=sizeof(serv_address);
+serv_sockfd=socket(AF_INET,SOCK_STREAM,0);
+bind(serv_sockfd,(struct sockaddr*)&serv_address,serv_len);
+listen(serv_sockfd,1);
+
+while(1)
+{
+printf("Server is waiting..\n");
+cli_len=sizeof(cli_address);
+cli_sockfd=accept(serv_sockfd,(struct sockaddr*)&cli_address,&cli_len);
+printf("Connect to client\n");
+read(cli_sockfd,&a,sizeof(a));
+printf("Reading message from client:\n");
+a++;
+printf("Character incremented %c\n",a);
+write(cli_sockfd,&a,sizeof(a));
+close(cli_sockfd);
+}
+}
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+
+----------------------TCP CHATTING-----------------------------------------------------------
+---------CLIENT.C----------------
+#include<stdio.h>
+#include<sys/types.h>
+#include<sys/socket.h>
+#include<netinet/in.h>
+#include<stdlib.h>
+#include<arpa/inet.h>
+#include<unistd.h>
+#include<string.h>
+
+int main()
+{
+int sockfd,len,result;
+struct sockaddr_in address;
+char name[800];
+sockfd=socket(AF_INET,SOCK_STREAM,0);
+address.sin_family=AF_INET;
+address.sin_port=htons(7002);
+address.sin_addr.s_addr=htonl(INADDR_ANY);
+len=sizeof(address);
+result=connect(sockfd,(struct sockaddr*)&address,len);
+printf("Enter the message to be sent: \n");
+fgets(name,800,stdin);
+fputs(name,stdout);
+while(name!="quit")
+{
+write(sockfd,name,sizeof(name));
+printf("\nMessage sent to server\n");
+read(sockfd,name,sizeof(name));
+printf("\n Reading from server: %s \n",name);
+int i=strncmp("quit",name,4);
+if(i==0)
+{
+break;
+}
+printf("\nType your message\n");
+fgets(name,800,stdin);
+}
+close(sockfd);
+return(0);
+}
+
+--------------SERVER.C--------------------
+#include<stdio.h>
+#include<sys/types.h>
+#include<sys/socket.h>
+#include<netinet/in.h>
+#include<arpa/inet.h>
+#include<unistd.h>
+
+int main()
+{
+int serv_sockfd,cli_sockfd;
+int serv_len,cli_len;
+struct sockaddr_in serv_address,cli_address;
+char a[800],b[800];
+serv_address.sin_family=AF_INET;
+serv_address.sin_port=htons(7002);
+serv_address.sin_addr.s_addr=htonl(INADDR_ANY);
+serv_len=sizeof(serv_address);
+serv_sockfd=socket(AF_INET,SOCK_STREAM,0);
+bind(serv_sockfd,(struct sockaddr*)&serv_address,serv_len);
+listen(serv_sockfd,5);
+printf("Server Ready...\n");
+cli_len=sizeof(cli_address);
+cli_sockfd=accept(serv_sockfd,(struct sockaddr*)&cli_address,&cli_len);
+printf("Connect to client\n");
+read(cli_sockfd,a,sizeof(a));
+
+while(1)
+{
+printf("Reading message from client\n");
+fputs(a,stdout);
+printf("\nType your message\n");
+fgets(a,800,stdin);
+write(cli_sockfd,a,sizeof(a));
+read(cli_sockfd,a,sizeof(a));
+}
+close(cli_sockfd);
+return 0;
+}
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------
+
+----------------------STOP AND WAIT PRPTOCOL------------------------------------------------
+--------------SENDER.C-----------------
+#include<stdio.h>
+#include<sys/types.h>
+#include<sys/socket.h>
+#include<netinet/in.h>
+#include<stdlib.h>
+#include<arpa/inet.h>
+#include<unistd.h>
+#include<string.h>
+int main()
+{
+int sockfd,newsockfd;
+int clilen;
+struct sockaddr_in cli_addr,serv_addr;
+int i;
+char buf[50],f='0';
+sockfd=socket(AF_INET,SOCK_STREAM,0);
+serv_addr.sin_family=AF_INET;
+serv_addr.sin_addr.s_addr=inet_addr("127.0.0.1");
+
+serv_addr.sin_port=5567;
+bind(sockfd,(struct sockaddr*)&serv_addr,sizeof(serv_addr));
+listen(sockfd,1);
+clilen=sizeof(cli_addr);
+newsockfd=accept(sockfd,(struct sockaddr*)&cli_addr,&clilen);
+
+while(1)
+{
+sleep(1);
+for(i=0;i<5;i++)
+{
+buf[i]='\0';
+}
+buf[0]=f;
+send(newsockfd,buf,5,0);
+for(i=0;i<5;i++)
+{
+buf[i]='\0';
+}
+recv(newsockfd,buf,5,0);
+printf("ACK: %s\n",buf);
+if(f=='0')
+{
+f='1';
+}
+else
+{
+f='0';
+}
+}
+return 0;
+}
+
+---------------------RECEIVER.C------------------------------
+#include<stdio.h>
+#include<sys/types.h>
+#include<sys/socket.h>
+#include<netinet/in.h>
+#include<stdlib.h>
+#include<arpa/inet.h>
+#include<unistd.h>
+#include<string.h>
+
+int main()
+{
+int sockfd;
+struct sockaddr_in serv_addr;
+int i;
+char buf[50];
+sockfd=socket(AF_INET,SOCK_STREAM,0);
+serv_addr.sin_family=AF_INET;
+serv_addr.sin_addr.s_addr=inet_addr("127.0.0.1");
+serv_addr.sin_port=5567;
+connect(sockfd,(struct sockaddr*)&serv_addr,sizeof(serv_addr));
+while(1)
+{
+sleep(1);
+for(i=0;i<5;i++)
+{
+buf[i]='\0';
+}
+recv(sockfd,buf,5,0);
+//sleep(1);
+printf("FRAME: %s\n",buf);
+if(buf[0]=='0')
+{
+buf[0]='1';
+}
+else
+{
+buf[0]='0';
+}
+send(sockfd,buf,5,0);
+}
+return 0;
+}
+
+
+Write a C program in TCP to send a message "Hello HIT" from client to server. The server will display the message and then send a response message "Thank you" to the client. The client will display the response message.
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------SENDER.c-------------------------------
+
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <stdlib.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+
+int main() {
+    int sockfd, len, result;
+    struct sockaddr_in address;
+    char name[100] = "Hello HIT";
+    char ser[100];
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    address.sin_family = AF_INET;
+    address.sin_port = htons(9002);
+    address.sin_addr.s_addr = inet_addr("127.0.0.1"); // Connect to local server
+    len = sizeof(address);
+
+    result = connect(sockfd, (struct sockaddr*)&address, len);
+    if (result == -1) {
+        perror("Connection failed");
+        exit(1);
+    }
+
+    write(sockfd, name, sizeof(name));
+    printf("\nMessage sent: %s\n", name);
+
+    read(sockfd, ser, sizeof(ser));
+    printf("\nReading from server: %s\n", ser);
+
+    close(sockfd);
+    return 0;
+}
+
+
+---------------------Rec.c-------------------------------
+
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+
+int main() {
+    int serv_sockfd, cli_sockfd;
+    int serv_len, cli_len;
+    struct sockaddr_in serv_address, cli_address;
+    char a[100], b[100] = "Thank you";
+
+    serv_address.sin_family = AF_INET;
+    serv_address.sin_port = htons(9002);
+    serv_address.sin_addr.s_addr = htonl(INADDR_ANY);
+    serv_len = sizeof(serv_address);
+
+    serv_sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    bind(serv_sockfd, (struct sockaddr*)&serv_address, serv_len);
+    listen(serv_sockfd, 1);
+
+    while (1) {
+        printf("Server is waiting..\n");
+        cli_len = sizeof(cli_address);
+        cli_sockfd = accept(serv_sockfd, (struct sockaddr*)&cli_address, &cli_len);
+        printf("Connected to client\n");
+
+        read(cli_sockfd, a, sizeof(a));
+        printf("Reading message from client:\n");
+        puts(a);
+
+        write(cli_sockfd, b, sizeof(b));
+        printf("Response sent to client\n");
+
+        close(cli_sockfd);
+    }
+
+    close(serv_sockfd);
+    return 0;
+}
+
+
+Write a C program in TCP to send a string "Welcome to HIT" to the server. The server will determine the number of vowels in the string and it will display them.
+----------------------------------------------------------------------------------------------------------------------------------------
+
+
+--------------------------------sender.c--------------------------
+
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <stdlib.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <string.h>
+
+int main() {
+    int sockfd, len, result;
+    struct sockaddr_in address;
+    char name[800];
+    
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    
+    address.sin_family = AF_INET;
+    address.sin_port = htons(7002);
+    address.sin_addr.s_addr = inet_addr("127.0.0.1");
+    len = sizeof(address);
+    
+    result = connect(sockfd, (struct sockaddr*)&address, len);
+    if (result == -1) {
+        perror("Connection failed");
+        exit(1);
+    }
+    
+    strcpy(name, "Welcome to HIT");
+    write(sockfd, name, sizeof(name));
+    printf("Message sent to server: %s\n", name);
+    
+    read(sockfd, name, sizeof(name));
+    printf("Reading from server: %s\n", name);
+    
+    close(sockfd);
+    return 0;
+}
+
+-------------------------RECEIVER.C---------------------------------
+
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <string.h>
+#include <ctype.h>
+
+// Function to count vowels in a string
+int count_vowels(const char *str) {
+    int count = 0;
+    while (*str) {
+        char ch = tolower(*str);
+        if (ch == 'a' || ch == 'e' || ch == 'i' || ch == 'o' || ch == 'u') {
+            count++;
+        }
+        str++;
+    }
+    return count;
+}
+
+int main() {
+    int serv_sockfd, cli_sockfd;
+    int serv_len, cli_len;
+    struct sockaddr_in serv_address, cli_address;
+    char a[800], response[800];
+    
+    serv_address.sin_family = AF_INET;
+    serv_address.sin_port = htons(7002);
+    serv_address.sin_addr.s_addr = htonl(INADDR_ANY);
+    serv_len = sizeof(serv_address);
+    
+    serv_sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    
+    bind(serv_sockfd, (struct sockaddr*)&serv_address, serv_len);
+    listen(serv_sockfd, 5);
+    
+    printf("Server Ready...\n");
+    cli_len = sizeof(cli_address);
+    cli_sockfd = accept(serv_sockfd, (struct sockaddr*)&cli_address, &cli_len);
+    printf("Connected to client\n");
+    
+    read(cli_sockfd, a, sizeof(a));
+    
+    while (1) {
+        printf("Reading message from client\n");
+        fputs(a, stdout);
+        
+        int vowel_count = count_vowels(a);
+        snprintf(response, sizeof(response), "Number of vowels: %d", vowel_count);
+        printf("\n%s\n", response);
+        
+        write(cli_sockfd, response, sizeof(response));
+        read(cli_sockfd, a, sizeof(a));
+        
+        if (strncmp("quit", a, 4) == 0) {
+            break;
+        }
+    }
+    
+    close(cli_sockfd);
+    close(serv_sockfd);
+    return 0;
+}
+
+Write a C program in TCP to send a string from client to server. On the server side, display the string first and then check if it is palindrome string.
+-------------------------------------------------------------------------------------------------------------------------------------
+
+-----------------------------------SENDER.c------------------------------------------
+
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <stdlib.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <string.h>
+
+int main() {
+    int sockfd, len, result;
+    struct sockaddr_in address;
+    char message[800], response[800];
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    address.sin_family = AF_INET;
+    address.sin_port = htons(7002);
+    address.sin_addr.s_addr = inet_addr("127.0.0.1");
+    len = sizeof(address);
+
+    result = connect(sockfd, (struct sockaddr*)&address, len);
+    if (result == -1) {
+        perror("Connection failed");
+        exit(1);
+    }
+
+    printf("Enter the message to be sent: \n");
+    fgets(message, sizeof(message), stdin);
+    message[strcspn(message, "\n")] = 0; // Remove newline character
+
+    write(sockfd, message, sizeof(message));
+    printf("Message sent to server: %s\n", message);
+
+    read(sockfd, response, sizeof(response));
+    printf("Response from server: %s\n", response);
+
+    close(sockfd);
+    return 0;
+}
+
+-----------------------------------RECEIVER.C----------------------------------------
+
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <string.h>
+#include <ctype.h>
+
+// Function to check if a string is a palindrome
+int is_palindrome(const char *str) {
+    int len = strlen(str);
+    for (int i = 0; i < len / 2; i++) {
+        if (tolower(str[i]) != tolower(str[len - i - 1])) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+int main() {
+    int serv_sockfd, cli_sockfd;
+    int serv_len, cli_len;
+    struct sockaddr_in serv_address, cli_address;
+    char message[800], response[800];
+
+    serv_address.sin_family = AF_INET;
+    serv_address.sin_port = htons(7002);
+    serv_address.sin_addr.s_addr = htonl(INADDR_ANY);
+    serv_len = sizeof(serv_address);
+
+    serv_sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    bind(serv_sockfd, (struct sockaddr*)&serv_address, serv_len);
+    listen(serv_sockfd, 5);
+
+    printf("Server Ready...\n");
+    cli_len = sizeof(cli_address);
+    cli_sockfd = accept(serv_sockfd, (struct sockaddr*)&cli_address, &cli_len);
+    printf("Connected to client\n");
+
+    read(cli_sockfd, message, sizeof(message));
+
+    while (1) {
+        printf("Reading message from client\n");
+        fputs(message, stdout);
+
+        if (is_palindrome(message)) {
+            snprintf(response, sizeof(response), "The string \"%s\" is a palindrome.", message);
+        } else {
+            snprintf(response, sizeof(response), "The string \"%s\" is not a palindrome.", message);
+        }
+        printf("\n%s\n", response);
+
+        write(cli_sockfd, response, sizeof(response));
+        read(cli_sockfd, message, sizeof(message));
+
+        if (strncmp("quit", message, 4) == 0) {
+            break;
+        }
+    }
+
+    close(cli_sockfd);
+    close(serv_sockfd);
+    return 0;
+}
+------------------------------------------------------------------------------------------------------------------------------------
+Write a C program in TCP to send an integer array from client to server. On the server side, display the array and determine the sum of elements. This sum will be sent back to the client and display on the client side.
+
+--------------------------------SENDER.c----------------------------------------
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <string.h>
+
+#define PORT 7002
+#define BUFFER_SIZE 1024
+
+int main() {
+    int sockfd, len, result;
+    struct sockaddr_in address;
+    int array[BUFFER_SIZE];
+    int num_elements;
+    int sum;
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        perror("Socket creation failed");
+        exit(1);
+    }
+
+    address.sin_family = AF_INET;
+    address.sin_port = htons(PORT);
+    address.sin_addr.s_addr = inet_addr("127.0.0.1");
+    len = sizeof(address);
+
+    result = connect(sockfd, (struct sockaddr*)&address, len);
+    if (result < 0) {
+        perror("Connection failed");
+        close(sockfd);
+        exit(1);
+    }
+
+    printf("Enter number of elements in the array: ");
+    scanf("%d", &num_elements);
+    printf("Enter the elements of the array: ");
+    for (int i = 0; i < num_elements; i++) {
+        scanf("%d", &array[i]);
+    }
+
+    write(sockfd, &num_elements, sizeof(num_elements));
+    write(sockfd, array, num_elements * sizeof(int));
+    printf("Array sent to server\n");
+
+    read(sockfd, &sum, sizeof(sum));
+    printf("Sum of array elements received from server: %d\n", sum);
+
+    close(sockfd);
+    return 0;
+}
+
+---------------------------------------RECEIVER.c-----------------------------------------------------------------
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <string.h>
+
+#define PORT 7002
+#define BUFFER_SIZE 1024
+
+int main() {
+    int serv_sockfd, cli_sockfd;
+    int serv_len, cli_len;
+    struct sockaddr_in serv_address, cli_address;
+    int array[BUFFER_SIZE];
+    int num_elements;
+    int sum;
+
+    serv_sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (serv_sockfd < 0) {
+        perror("Socket creation failed");
+        exit(1);
+    }
+
+    serv_address.sin_family = AF_INET;
+    serv_address.sin_port = htons(PORT);
+    serv_address.sin_addr.s_addr = htonl(INADDR_ANY);
+    serv_len = sizeof(serv_address);
+
+    bind(serv_sockfd, (struct sockaddr*)&serv_address, serv_len);
+    listen(serv_sockfd, 5);
+    printf("Server Ready...\n");
+
+    cli_len = sizeof(cli_address);
+    cli_sockfd = accept(serv_sockfd, (struct sockaddr*)&cli_address, &cli_len);
+    if (cli_sockfd < 0) {
+        perror("Accept failed");
+        close(serv_sockfd);
+        exit(1);
+    }
+
+    read(cli_sockfd, &num_elements, sizeof(num_elements));
+    read(cli_sockfd, array, num_elements * sizeof(int));
+
+    printf("Array received from client: ");
+    sum = 0;
+    for (int i = 0; i < num_elements; i++) {
+        printf("%d ", array[i]);
+        sum += array[i];
+    }
+    printf("\nSum of array elements: %d\n", sum);
+
+    write(cli_sockfd, &sum, sizeof(sum));
+
+    close(cli_sockfd);
+    close(serv_sockfd);
+    return 0;
+}
+----------------------------------------------------------------------------------------------------------------------------------------
+Write a C program in TCP to send an integer array from client to server. Display the array on the server machine and determine the second largest element of the array.
+
+---------------------------------------------------SENDER.c-------------------------------------------------------
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+
+#define PORT 7002
+
+int main() {
+    int sockfd, len, result;
+    struct sockaddr_in address;
+    int num_elements;
+    int *array;
+    int second_largest;
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        perror("Socket creation failed");
+        exit(1);
+    }
+
+    address.sin_family = AF_INET;
+    address.sin_port = htons(PORT);
+    address.sin_addr.s_addr = inet_addr("127.0.0.1");
+    len = sizeof(address);
+
+    result = connect(sockfd, (struct sockaddr*)&address, len);
+    if (result < 0) {
+        perror("Connection failed");
+        close(sockfd);
+        exit(1);
+    }
+
+    printf("Enter number of elements in the array: ");
+    scanf("%d", &num_elements);
+    array = (int *)malloc(num_elements * sizeof(int));
+
+    printf("Enter the elements of the array: ");
+    for (int i = 0; i < num_elements; i++) {
+        scanf("%d", &array[i]);
+    }
+
+    write(sockfd, &num_elements, sizeof(num_elements));
+    write(sockfd, array, num_elements * sizeof(int));
+    printf("Array sent to server\n");
+
+    read(sockfd, &second_largest, sizeof(second_largest));
+    printf("Second largest element received from server: %d\n", second_largest);
+
+    free(array);
+    close(sockfd);
+    return 0;
+}
+--------------------------------------------------------------------------------------------------------------------------------------
+Write a C program in TCP to send an integer array from client to server. Display the array on the server machine and determine the second largest element of the array.
+
+----------------------------------------------SENDER.c----------------------------------------------------------
+
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+
+int main() {
+    int sockfd, len, result;
+    struct sockaddr_in address;
+    int num_elements, i;
+    int array[100]; // Maximum array size assumed as 100
+    int second_largest;
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        perror("Socket creation failed");
+        return 1;
+    }
+
+    address.sin_family = AF_INET;
+    address.sin_port = htons(7002); // Assuming port 7002
+    address.sin_addr.s_addr = inet_addr("127.0.0.1"); // Assuming localhost
+    len = sizeof(address);
+
+    result = connect(sockfd, (struct sockaddr*)&address, len);
+    if (result < 0) {
+        perror("Connection failed");
+        close(sockfd);
+        return 1;
+    }
+
+    printf("Enter number of elements in the array: ");
+    scanf("%d", &num_elements);
+
+    printf("Enter the elements of the array:\n");
+    for (i = 0; i < num_elements; i++) {
+        scanf("%d", &array[i]);
+    }
+
+    write(sockfd, &num_elements, sizeof(num_elements));
+    write(sockfd, array, num_elements * sizeof(int));
+    printf("Array sent to server\n");
+
+    read(sockfd, &second_largest, sizeof(second_largest));
+    printf("Second largest element received from server: %d\n", second_largest);
+
+    close(sockfd);
+    return 0;
+}
+-----------------------------------------RECEIVER.c---------------------------------------------------------------
+
+
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <unistd.h>
+
+int main() {
+    int serv_sockfd, cli_sockfd;
+    int serv_len, cli_len;
+    struct sockaddr_in serv_address, cli_address;
+    int num_elements, i;
+    int array[100]; // Maximum array size assumed as 100
+    int largest, second_largest;
+
+    serv_sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (serv_sockfd < 0) {
+        perror("Socket creation failed");
+        return 1;
+    }
+
+    serv_address.sin_family = AF_INET;
+    serv_address.sin_port = htons(7002); // Assuming port 7002
+    serv_address.sin_addr.s_addr = htonl(INADDR_ANY);
+    serv_len = sizeof(serv_address);
+
+    bind(serv_sockfd, (struct sockaddr*)&serv_address, serv_len);
+    listen(serv_sockfd, 5);
+    printf("Server Ready...\n");
+
+    cli_len = sizeof(cli_address);
+    cli_sockfd = accept(serv_sockfd, (struct sockaddr*)&cli_address, &cli_len);
+    if (cli_sockfd < 0) {
+        perror("Accept failed");
+        close(serv_sockfd);
+        return 1;
+    }
+
+    read(cli_sockfd, &num_elements, sizeof(num_elements));
+    read(cli_sockfd, array, num_elements * sizeof(int));
+
+    printf("Array received from client:\n");
+    for (i = 0; i < num_elements; i++) {
+        printf("%d ", array[i]);
+    }
+    printf("\n");
+
+    largest = second_largest = array[0];
+    for (i = 1; i < num_elements; i++) {
+        if (array[i] > largest) {
+            second_largest = largest;
+            largest = array[i];
+        } else if (array[i] > second_largest && array[i] != largest) {
+            second_largest = array[i];
+        }
+    }
+
+    printf("Second largest element: %d\n", second_largest);
+    write(cli_sockfd, &second_largest, sizeof(second_largest));
+
+    close(cli_sockfd);
+    close(serv_sockfd);
+    return 0;
+}
+--------------------------------------------------------------------------------------------------------------------------------------
+Write a program to pass a string from client to server. Display the lower case message in the server. Further, convert the message from lower case to upper case and display the converted message in client side.
+
+------------------------------------SENDER.c-------------------------------------
+
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <string.h>
+#include <ctype.h>
+
+int main() {
+    int sockfd, len, result;
+    struct sockaddr_in address;
+    char message[100];
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        perror("Socket creation failed");
+        return 1;
+    }
+
+    address.sin_family = AF_INET;
+    address.sin_port = htons(7002); // Assuming port 7002
+    address.sin_addr.s_addr = inet_addr("127.0.0.1"); // Assuming localhost
+    len = sizeof(address);
+
+    result = connect(sockfd, (struct sockaddr*)&address, len);
+    if (result < 0) {
+        perror("Connection failed");
+        close(sockfd);
+        return 1;
+    }
+
+    printf("Enter a string: ");
+    fgets(message, sizeof(message), stdin);
+
+    write(sockfd, message, sizeof(message));
+
+    close(sockfd);
+    return 0;
+}
+
+---------------------------------------------------RECEIVER.c----------------------------------------------
+
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <unistd.h>
+#include <ctype.h>
+
+int main() {
+    int serv_sockfd, cli_sockfd;
+    int serv_len, cli_len;
+    struct sockaddr_in serv_address, cli_address;
+    char message[100];
+
+    serv_sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (serv_sockfd < 0) {
+        perror("Socket creation failed");
+        return 1;
+    }
+
+    serv_address.sin_family = AF_INET;
+    serv_address.sin_port = htons(7002); // Assuming port 7002
+    serv_address.sin_addr.s_addr = htonl(INADDR_ANY);
+    serv_len = sizeof(serv_address);
+
+    bind(serv_sockfd, (struct sockaddr*)&serv_address, serv_len);
+    listen(serv_sockfd, 5);
+    printf("Server Ready...\n");
+
+    cli_len = sizeof(cli_address);
+    cli_sockfd = accept(serv_sockfd, (struct sockaddr*)&cli_address, &cli_len);
+    if (cli_sockfd < 0) {
+        perror("Accept failed");
+        close(serv_sockfd);
+        return 1;
+    }
+
+    read(cli_sockfd, message, sizeof(message));
+
+    printf("Received message from client in lowercase: %s\n", message);
+
+    for (int i = 0; message[i] != '\0'; i++) {
+        message[i] = toupper(message[i]);
+    }
+
+    printf("Converted message in uppercase: %s\n", message);
+
+    close(cli_sockfd);
+    close(serv_sockfd);
+    return 0;
+}
+
+-----------------------------------------------------------------------------------------------------------------------------------
+
+Write a program to pass a string from client to server. Display the string in server side. Further, find the reverse of the string and send the same to the client and display the reversed string in client side.
+
+-------------------------------------------------------SENDER.c------------------------------------------------------
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <string.h>
+
+int main() {
+    int sockfd, len, result;
+    struct sockaddr_in address;
+    char message[100];
+    char reversed[100];
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        perror("Socket creation failed");
+        return 1;
+    }
+
+    address.sin_family = AF_INET;
+    address.sin_port = htons(7002); // Assuming port 7002
+    address.sin_addr.s_addr = inet_addr("127.0.0.1"); // Assuming localhost
+    len = sizeof(address);
+
+    result = connect(sockfd, (struct sockaddr*)&address, len);
+    if (result < 0) {
+        perror("Connection failed");
+        close(sockfd);
+        return 1;
+    }
+
+    printf("Enter a string: ");
+    fgets(message, sizeof(message), stdin);
+
+    write(sockfd, message, sizeof(message));
+
+    read(sockfd, reversed, sizeof(reversed));
+    printf("Reversed string received from server: %s\n", reversed);
+
+    close(sockfd);
+    return 0;
+}
+---------------------------------------------RECEIVER.c------------------------------------------------------------------
+
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <unistd.h>
+#include <string.h>
+
+int main() {
+    int serv_sockfd, cli_sockfd;
+    int serv_len, cli_len;
+    struct sockaddr_in serv_address, cli_address;
+    char message[100];
+    char reversed[100];
+
+    serv_sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (serv_sockfd < 0) {
+        perror("Socket creation failed");
+        return 1;
+    }
+
+    serv_address.sin_family = AF_INET;
+    serv_address.sin_port = htons(7002); // Assuming port 7002
+    serv_address.sin_addr.s_addr = htonl(INADDR_ANY);
+    serv_len = sizeof(serv_address);
+
+    bind(serv_sockfd, (struct sockaddr*)&serv_address, serv_len);
+    listen(serv_sockfd, 5);
+    printf("Server Ready...\n");
+
+    cli_len = sizeof(cli_address);
+    cli_sockfd = accept(serv_sockfd, (struct sockaddr*)&cli_address, &cli_len);
+    if (cli_sockfd < 0) {
+        perror("Accept failed");
+        close(serv_sockfd);
+        return 1;
+    }
+
+    read(cli_sockfd, message, sizeof(message));
+    printf("Received message from client: %s\n", message);
+
+    int len = strlen(message);
+    for (int i = 0; i < len; i++) {
+        reversed[i] = message[len - i - 1];
+    }
+    reversed[len] = '\0';
+
+    write(cli_sockfd, reversed, sizeof(reversed));
+
+    close(cli_sockfd);
+    close(serv_sockfd);
+    return 0;
+}
+
+------------------------------------------------------------------------------------------------------------------------------------
+Write a program to pass an integer array from client to server and print the array in server side.
+
+-------------------------------------SENDER.c-------------------------------------------------------------
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+
+int main() {
+    int sockfd, len, result;
+    struct sockaddr_in address;
+    int num_elements, i;
+    int array[100]; // Maximum array size assumed as 100
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        perror("Socket creation failed");
+        return 1;
+    }
+
+    address.sin_family = AF_INET;
+    address.sin_port = htons(7002); // Assuming port 7002
+    address.sin_addr.s_addr = inet_addr("127.0.0.1"); // Assuming localhost
+    len = sizeof(address);
+
+    result = connect(sockfd, (struct sockaddr*)&address, len);
+    if (result < 0) {
+        perror("Connection failed");
+        close(sockfd);
+        return 1;
+    }
+
+    printf("Enter number of elements in the array: ");
+    scanf("%d", &num_elements);
+
+    printf("Enter the elements of the array:\n");
+    for (i = 0; i < num_elements; i++) {
+        scanf("%d", &array[i]);
+    }
+
+    write(sockfd, &num_elements, sizeof(num_elements));
+    write(sockfd, array, num_elements * sizeof(int));
+    printf("Array sent to server\n");
+
+    close(sockfd);
+    return 0;
+}
+
+------------------------------------------------------RECEIVER.c-------------------------------------------------------------------
+
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <unistd.h>
+
+int main() {
+    int serv_sockfd, cli_sockfd;
+    int serv_len, cli_len;
+    struct sockaddr_in serv_address, cli_address;
+    int num_elements, i;
+    int array[100]; // Maximum array size assumed as 100
+
+    serv_sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (serv_sockfd < 0) {
+        perror("Socket creation failed");
+        return 1;
+    }
+
+    serv_address.sin_family = AF_INET;
+    serv_address.sin_port = htons(7002); // Assuming port 7002
+    serv_address.sin_addr.s_addr = htonl(INADDR_ANY);
+    serv_len = sizeof(serv_address);
+
+    bind(serv_sockfd, (struct sockaddr*)&serv_address, serv_len);
+    listen(serv_sockfd, 5);
+    printf("Server Ready...\n");
+
+    cli_len = sizeof(cli_address);
+    cli_sockfd = accept(serv_sockfd, (struct sockaddr*)&cli_address, &cli_len);
+    if (cli_sockfd < 0) {
+        perror("Accept failed");
+        close(serv_sockfd);
+        return 1;
+    }
+
+    read(cli_sockfd, &num_elements, sizeof(num_elements));
+    read(cli_sockfd, array, num_elements * sizeof(int));
+
+    printf("Received array from client:\n");
+    for (i = 0; i < num_elements; i++) {
+        printf("%d ", array[i]);
+    }
+    printf("\n");
+
+    close(cli_sockfd);
+    close(serv_sockfd);
+    return 0;
+}
+
+--------------------------------------------------------------------------------------------------------------------------------------
+Write a program to pass an integer array from client to server. Determine the greatest element on the server side and print it in the client side.
+
+--------------------------------------------------sender.c-----------------------------------------
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+
+int main() {
+    int sockfd, len, result;
+    struct sockaddr_in address;
+    int num_elements, i;
+    int array[100]; // Maximum array size assumed as 100
+    int greatest_element;
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        perror("Socket creation failed");
+        return 1;
+    }
+
+    address.sin_family = AF_INET;
+    address.sin_port = htons(7002); // Assuming port 7002
+    address.sin_addr.s_addr = inet_addr("127.0.0.1"); // Assuming localhost
+    len = sizeof(address);
+
+    result = connect(sockfd, (struct sockaddr*)&address, len);
+    if (result < 0) {
+        perror("Connection failed");
+        close(sockfd);
+        return 1;
+    }
+
+    printf("Enter number of elements in the array: ");
+    scanf("%d", &num_elements);
+
+    printf("Enter the elements of the array:\n");
+    for (i = 0; i < num_elements; i++) {
+        scanf("%d", &array[i]);
+    }
+
+    write(sockfd, &num_elements, sizeof(num_elements));
+    write(sockfd, array, num_elements * sizeof(int));
+    printf("Array sent to server\n");
+
+    read(sockfd, &greatest_element, sizeof(greatest_element));
+    printf("Greatest element received from server: %d\n", greatest_element);
+
+    close(sockfd);
+    return 0;
+}
+
+-------------------------------------------RECV.c--------------------------------------------
+
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <unistd.h>
+
+int main() {
+    int serv_sockfd, cli_sockfd;
+    int serv_len, cli_len;
+    struct sockaddr_in serv_address, cli_address;
+    int num_elements, i;
+    int array[100]; // Maximum array size assumed as 100
+    int greatest_element;
+
+    serv_sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (serv_sockfd < 0) {
+        perror("Socket creation failed");
+        return 1;
+    }
+
+    serv_address.sin_family = AF_INET;
+    serv_address.sin_port = htons(7002); // Assuming port 7002
+    serv_address.sin_addr.s_addr = htonl(INADDR_ANY);
+    serv_len = sizeof(serv_address);
+
+    bind(serv_sockfd, (struct sockaddr*)&serv_address, serv_len);
+    listen(serv_sockfd, 5);
+    printf("Server Ready...\n");
+
+    cli_len = sizeof(cli_address);
+    cli_sockfd = accept(serv_sockfd, (struct sockaddr*)&cli_address, &cli_len);
+    if (cli_sockfd < 0) {
+        perror("Accept failed");
+        close(serv_sockfd);
+        return 1;
+    }
+
+    read(cli_sockfd, &num_elements, sizeof(num_elements));
+    read(cli_sockfd, array, num_elements * sizeof(int));
+
+    greatest_element = array[0];
+    for (i = 1; i < num_elements; i++) {
+        if (array[i] > greatest_element) {
+            greatest_element = array[i];
+        }
+    }
+
+    write(cli_sockfd, &greatest_element, sizeof(greatest_element));
+
+    close(cli_sockfd);
+    close(serv_sockfd);
+    return 0;
+}
+
+
+---------------------------------------------END------------------------------------------------------------------
